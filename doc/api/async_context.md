@@ -147,6 +147,51 @@ this time will print the stack trace and exit. See
 Creating an async resource within the `onPropagate` callback will result in
 a recursive call to `onPropagate`.
 
+### Static method: `AsyncLocalStorage.bind(fn)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `fn` {Function} The function to bind to the current execution context.
+
+Binds the given function to the current execution context.
+
+
+### Static method: `AsyncLocalStorage.snapshot()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Returns a callback that captures the current async context and invokes a
+callback passed into it within the captured async context.
+
+```js
+const asyncLocalStorage = new AsyncLocalStorage();
+const runInAsyncScope = asyncLocalStorage.run(123, () => asyncLocalStorage.snapshot());
+const result = asyncLocalStorage.run(321, () => runInAsyncScope(() => asyncLocalStorage.getStore()));
+console.log(result);  // returns 123
+```
+
+AsyncLocalStorage.snapshot() can replace the use of AsyncResource for simple
+async context tracking purposes, for example:
+
+```js
+class Foo {
+  #runInAsyncScope = AsyncLocalStorage.snapshot();
+
+  get() { return this.#runInAsyncScope(() => asyncLocalStorage.getStore()); }
+}
+
+const foo = asyncLocalStorage.run(123, () => new Foo());
+console.log(asyncLocalStorage.run(321, () => foo.get())); // returns 123
+```
+
 ### `asyncLocalStorage.disable()`
 
 <!-- YAML
