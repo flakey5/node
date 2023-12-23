@@ -17,6 +17,9 @@ promotecmd=dist-promote
 signcmd=dist-sign
 customsshkey="" # let ssh and scp use default key
 signversion=""
+s3_bucket="dist-staging" # private bucket
+s3_endpoint=https://07be8d2fbc940503ca1be344714cb0d1.r2.cloudflarestorage.com # Node.js Cloudflare account
+s3_profile="nodejs-r2-dist-bucket"
 
 while getopts ":i:s:" option; do
     case "${option}" in
@@ -25,6 +28,12 @@ while getopts ":i:s:" option; do
             ;;
         s)
             signversion="${OPTARG}"
+            ;;
+        e)
+            s3_endpoint="${OPTARG}"
+            ;;
+        p)
+            s3_profile="${OPTARG}"
             ;;
         \?)
             echo "Invalid option -$OPTARG."
@@ -134,7 +143,7 @@ sign() {
   echo ""
 
   while true; do
-    printf "Upload files? [y/n] "
+    printf "Upload files to the origin server? [y/n] "
     yorn=""
     read -r yorn
 
@@ -147,6 +156,23 @@ sign() {
       scp ${customsshkey} "${tmpdir}/${shafile}" "${tmpdir}/${shafile}.asc" "${tmpdir}/${shafile}.sig" "${webuser}@${webhost}:${shadir}/"
       # shellcheck disable=SC2086,SC2029
       ssh ${customsshkey} "${webuser}@${webhost}" chmod 644 "${shadir}/${shafile}.asc" "${shadir}/${shafile}.sig"
+      break
+    fi
+  done
+
+  while true; do
+    printf "Upload files to R2? [y/n]"
+    yorn=""
+    read -r yorn
+
+    if [ "X${yorn}" = "Xn" ]; then
+      break
+    fi
+
+    if [ "X${yorn}" = "Xy" ]; then
+      # Note: the binaries and SHASUMS256.txt should already be in this bucket since the CI runner will upload them
+      aws s3 cp "${tmpdir}/${shafile}.asc" "s3://${s3_bucket}/${shadir}" --endpoint=${s3_endpoint} --profile=${s3_profile}
+      aws s3 cp "${tmpdir}/${shafile}.sig" "s3://${s3_bucket}/${shadir}" --endpoint=${s3_endpoint} --profile=${s3_profile}
       break
     fi
   done
